@@ -42,9 +42,10 @@ snx_rtsp_server is a small rtsp streaming server developed base on live555 libra
          MJPEG example   : /etc/snx_rtsp_server -W 640 -H 480 -j 60 -Q 5 -u media/stream1 -P 554
 
 
-Reference:
+Reference: 
 
    modified from https://github.com/mpromonet/h264_v4l2_rtspserver
+   #version c01325cabebcf3b50bb5c39cde7d5777f5f38270
 
    MJPEG modified from http://stackoverflow.com/questions/12158716/jpeg-streaming-with-live555/20584296#20584296
 

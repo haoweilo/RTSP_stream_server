@@ -43,9 +43,10 @@ H264_V4L2DeviceSource::~H264_V4L2DeviceSource()
 std::list< std::pair<unsigned char*,size_t> > H264_V4L2DeviceSource::splitFrames(unsigned char* frame, unsigned frameSize) 
 {				
 	std::list< std::pair<unsigned char*,size_t> > frameList;
-#if 1	
+	
+	size_t bufSize = frameSize;
 	size_t size = 0;
-	unsigned char* buffer = this->extractFrame(frame, frameSize, size);
+	unsigned char* buffer = this->extractFrame(frame, bufSize, size);
 	while (buffer != NULL)				
 	{
 		frameList.push_back(std::make_pair<unsigned char*,size_t>(buffer, size));
@@ -82,23 +83,21 @@ std::list< std::pair<unsigned char*,size_t> > H264_V4L2DeviceSource::splitFrames
 			fprintf(stderr, "m_a %s\n", m_auxLine.c_str() );
 		}
 		
-		frameSize -= size;				
-		buffer = this->extractFrame(&buffer[size], frameSize, size);
+		buffer = this->extractFrame(&buffer[size], bufSize, size);
 	}
-#endif
 	return frameList;
 }
 
 // extract a frame
-unsigned char*  H264_V4L2DeviceSource::extractFrame(unsigned char* frame, size_t size, size_t& outsize)
+unsigned char*  H264_V4L2DeviceSource::extractFrame(unsigned char* frame, size_t& size, size_t& outsize)
 {			
 	unsigned char * outFrame = NULL;
 	outsize = 0;
-#if 1
 	if ( (size>= sizeof(H264marker)) && (memcmp(frame,H264marker,sizeof(H264marker)) == 0) )
 	{
+		size -=  sizeof(H264marker);
 		outFrame = &frame[sizeof(H264marker)];
-		outsize = size - sizeof(H264marker);
+		outsize = size;
 		for (int i=0; i+sizeof(H264marker) < size; ++i)
 		{
 			if (memcmp(&outFrame[i],H264marker,sizeof(H264marker)) == 0)
@@ -107,8 +106,8 @@ unsigned char*  H264_V4L2DeviceSource::extractFrame(unsigned char* frame, size_t
 				break;
 			}
 		}
+		size -=  outsize;
 	}
-#endif
 	return outFrame;
 }
 

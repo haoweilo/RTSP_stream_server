@@ -311,8 +311,8 @@ int main(int argc, char** argv)
 		{
 			case 'O':	outputFile = optarg; break;
 			//case 'v':	verbose = 1; if (optarg && *optarg=='v') verbose++;  break;
-			case 'm':	multicast = true; murl = optarg; break;
-			case 'M':	maddr = inet_addr(optarg); break;
+			case 'm':	multicast = true; if (optarg) murl = optarg; break;
+			case 'M':	multicast = true; if (optarg) maddr = inet_addr(optarg); break;
 			case 'g':	gop = atoi(optarg); break; 
 			case 'b':	bitrate = atoi(optarg); break; 
 			case 'W':	width = atoi(optarg); break;
