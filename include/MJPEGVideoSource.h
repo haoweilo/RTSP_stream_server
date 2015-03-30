@@ -141,9 +141,9 @@ class MJPEGVideoSource : public JPEGVideoSource
         protected:
                 MJPEGVideoSource(UsageEnvironment& env, FramedSource* source, V4L2DeviceParameters params) : JPEGVideoSource(env),
                 m_inputSource( source),
-                m_width(params.m_width),
-                m_height(params.m_height),
-                m_qFactor(params.m_mjpeg_qp),
+                m_width(params.m_width >> 3),
+                m_height(params.m_height >> 3),
+                m_qFactor(255),
                 m_qTable0Init(true),
                 m_qTable1Init(false)
                 {
