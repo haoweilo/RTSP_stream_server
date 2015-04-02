@@ -60,11 +60,14 @@ V4L2DeviceSource::V4L2DeviceSource(UsageEnvironment& env, V4L2DeviceParameters p
 
 	//m_device->cb = callback;
 	m_eventTriggerId = envir().taskScheduler().createEventTrigger(V4L2DeviceSource::deliverFrameStub);
+	memset(&m_mutex, 0, sizeof(m_mutex));
+	pthread_mutex_init(&m_mutex, NULL);
 #if 0
 	if (m_device)
 	{
 		if (useThread)
 		{
+			pthread_mutex_init(&m_mutex, NULL);
 			pthread_create(&m_thid, NULL, threadStub, this);		
 		}
 		else
@@ -80,6 +83,7 @@ V4L2DeviceSource::~V4L2DeviceSource()
 {	
 	printf("~V4L2DeviceSource\n");
 	envir().taskScheduler().deleteEventTrigger(m_eventTriggerId);
+	pthread_mutex_destroy(&m_mutex);
 #if 0	
 	pthread_join(m_thid, NULL);	
 #endif
@@ -126,11 +130,15 @@ void* V4L2DeviceSource::thread()
 // getting FrameSource callback
 void V4L2DeviceSource::doGetNextFrame()
 {
+	int isQueueEmpty = 0;
 	//printf("V4L2DeviceSource::doGetNextFrame\n");
-	if (!m_captureQueue.empty())
-	{
+	pthread_mutex_lock (&m_mutex);
+	isQueueEmpty = m_captureQueue.empty();
+	pthread_mutex_unlock (&m_mutex);
+	
+	if(!isQueueEmpty)
 		deliverFrame();
-	}
+
 }
 
 // stopping FrameSource callback
@@ -142,22 +150,33 @@ void V4L2DeviceSource::doStopGettingFrames()
 
 // deliver frame to the sink
 void V4L2DeviceSource::deliverFrame()
-{			
+{
+	int isQueueEmpty = 0;
 	if (isCurrentlyAwaitingData()) 
 	{
 		//fprintf(stderr, "V4L2DeviceSource::isCurrentlyAwaitingData\n");
 		fDurationInMicroseconds = 0;
 		fFrameSize = 0;
-		
-		if (m_captureQueue.empty())
+
+		pthread_mutex_lock (&m_mutex);
+		isQueueEmpty = m_captureQueue.empty();
+		pthread_mutex_unlock (&m_mutex);
+
+		//if (m_captureQueue.empty())
+		if(isQueueEmpty)
 		{
 			//LOG(DEBUG) << "Queue is empty \n";		
 		}
 		else
 		{				
-			gettimeofday(&fPresentationTime, NULL);			
+			gettimeofday(&fPresentationTime, NULL);	
+
+			pthread_mutex_lock (&m_mutex);	
+			
 			Frame * frame = m_captureQueue.front();
 			m_captureQueue.pop_front();
+
+			pthread_mutex_unlock (&m_mutex);
 	
 			m_out.notify(fPresentationTime.tv_sec, frame->m_size);
 			if (frame->m_size > fMaxSize) 
@@ -172,8 +191,8 @@ void V4L2DeviceSource::deliverFrame()
 			timeval diff;
 			timersub(&fPresentationTime,&(frame->m_timestamp),&diff);
 
-			//LOG(DEBUG) << "deliverFrame\ttimestamp:" << fPresentationTime.tv_sec << "." << fPresentationTime.tv_usec << "\tsize:" << fFrameSize <<"\tdiff" <<  (diff.tv_sec*1000+diff.tv_usec/1000) << "ms\tqueue:" << m_captureQueue.size();		
-			//fprintf(stderr, "deliverFrame\ttimestamp: %u.%u\tsize: %d \tdiff: %d ms\tqueue: %u\n",fPresentationTime.tv_sec, fPresentationTime.tv_usec, fFrameSize, (diff.tv_sec*1000+diff.tv_usec/1000), m_captureQueue.size());
+			//LOG(DEBUG) << "deliverFrame\ttimestamp:" << fPresentationTime.tv_sec << "." << fPresentationTime.tv_usec << "\tsize:" << fFrameSize <<"\tdiff" <<  (diff.tv_sec*1000+diff.tv_usec/1000) << "ms";		
+			//fprintf(stderr, "deliverFrame\ttimestamp: %u.%u\tsize: %d \tdiff: %d ms\n",fPresentationTime.tv_sec, fPresentationTime.tv_usec, fFrameSize, (diff.tv_sec*1000+diff.tv_usec/1000));
 
 			memcpy(fTo, frame->m_buffer, fFrameSize);
 			delete frame;
@@ -339,6 +358,7 @@ void V4L2DeviceSource::processFrame(char * frame, int frameSize, const timeval &
 // post a frame to fifo
 void V4L2DeviceSource::queueFrame(char * frame, int frameSize, const timeval &tv) 
 {
+	pthread_mutex_lock (&m_mutex);
 	while (m_captureQueue.size() >= m_queueSize)
 	{
 		//LOG(DEBUG) << "Queue full size drop frame size:"  << (int)m_captureQueue.size() << " \n";
@@ -346,7 +366,8 @@ void V4L2DeviceSource::queueFrame(char * frame, int frameSize, const timeval &tv
 		delete m_captureQueue.front();
 		m_captureQueue.pop_front();
 	}
-	m_captureQueue.push_back(new Frame(frame, frameSize, tv));	
+	m_captureQueue.push_back(new Frame(frame, frameSize, tv));
+	pthread_mutex_unlock (&m_mutex);
 
 	// post an event to ask to deliver the frame
 	envir().taskScheduler().triggerEvent(m_eventTriggerId, this);

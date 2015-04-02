@@ -57,14 +57,15 @@ AlsaDeviceSource::AlsaDeviceSource(UsageEnvironment& env, int outputFd, unsigned
 {
 
 	m_eventTriggerId = envir().taskScheduler().createEventTrigger(AlsaDeviceSource::deliverFrameStub);
-
+	memset(&m_mutex, 0, sizeof(m_mutex));
+	pthread_mutex_init(&m_mutex, NULL);
 }
 
 // Destructor
 AlsaDeviceSource::~AlsaDeviceSource()
 {	
 	envir().taskScheduler().deleteEventTrigger(m_eventTriggerId);
-
+	pthread_mutex_destroy(&m_mutex);
 }
 
 // thread mainloop
@@ -76,10 +77,16 @@ void* AlsaDeviceSource::thread()
 // getting FrameSource callback
 void AlsaDeviceSource::doGetNextFrame()
 {
-	if (!m_captureQueue.empty())
-	{
+
+	int isQueueEmpty = 0;
+	//printf("AlsaDeviceSource::doGetNextFrame\n");
+	pthread_mutex_lock (&m_mutex);
+	isQueueEmpty = m_captureQueue.empty();
+	pthread_mutex_unlock (&m_mutex);
+	
+	if(!isQueueEmpty)
 		deliverFrame();
-	}
+
 }
 
 // stopping FrameSource callback
@@ -91,20 +98,31 @@ void AlsaDeviceSource::doStopGettingFrames()
 // deliver frame to the sink
 void AlsaDeviceSource::deliverFrame()
 {			
+	int isQueueEmpty = 0;
 	if (isCurrentlyAwaitingData()) 
 	{
 		fDurationInMicroseconds = 0;
 		fFrameSize = 0;
+
+		pthread_mutex_lock (&m_mutex);
+		isQueueEmpty = m_captureQueue.empty();
+		pthread_mutex_unlock (&m_mutex);
 		
-		if (m_captureQueue.empty())
+		//if (m_captureQueue.empty())
+		if(isQueueEmpty)
 		{
 			//LOG(DEBUG) << "Queue is empty \n";		
 		}
 		else
 		{				
-			gettimeofday(&fPresentationTime, NULL);			
+			gettimeofday(&fPresentationTime, NULL);
+
+			pthread_mutex_lock (&m_mutex);		
+
 			Frame * frame = m_captureQueue.front();
 			m_captureQueue.pop_front();
+
+			pthread_mutex_unlock (&m_mutex);
 	
 			m_out.notify(fPresentationTime.tv_sec, frame->m_size);
 			if (frame->m_size > fMaxSize) 
@@ -182,6 +200,7 @@ void AlsaDeviceSource::processFrame(char * frame, int frameSize, const timeval &
 // post a frame to fifo
 void AlsaDeviceSource::queueFrame(char * frame, int frameSize, const timeval &tv) 
 {
+	pthread_mutex_lock (&m_mutex);
 	while (m_captureQueue.size() >= m_queueSize)
 	{
 		//LOG(DEBUG) << "Queue full size drop frame size:"  << (int)m_captureQueue.size() << " \n";
@@ -189,7 +208,8 @@ void AlsaDeviceSource::queueFrame(char * frame, int frameSize, const timeval &tv
 		delete m_captureQueue.front();
 		m_captureQueue.pop_front();
 	}
-	m_captureQueue.push_back(new Frame(frame, frameSize, tv));	
+	m_captureQueue.push_back(new Frame(frame, frameSize, tv));
+	pthread_mutex_unlock (&m_mutex);
 	
 	// post an event to ask to deliver the frame
 	envir().taskScheduler().triggerEvent(m_eventTriggerId, this);

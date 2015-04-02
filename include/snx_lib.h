@@ -9,14 +9,15 @@
 // ---------------------------------
 struct V4L2DeviceParameters 
 {
-	V4L2DeviceParameters(const char* devname, unsigned int format, unsigned int width, unsigned int height, int fps, int verbose, int bitrate, int m2m_en, int gop, int mjpeg_qp, int queueSize) : 
-		m_devName(devname), m_format(format), m_width(width), m_height(height), m_fps(fps), m_verbose(verbose), m_bitrate(bitrate), m_m2m_en(m2m_en), m_gop(gop), m_mjpeg_qp(mjpeg_qp), m_queueSize(queueSize) {};
+	V4L2DeviceParameters(const char* devname, unsigned int format, unsigned int width, unsigned int height, int fps, int isp_fps, int verbose, int bitrate, int m2m_en, int gop, int mjpeg_qp, int queueSize) : 
+		m_devName(devname), m_format(format), m_width(width), m_height(height), m_fps(fps), m_isp_fps(isp_fps), m_verbose(verbose), m_bitrate(bitrate), m_m2m_en(m2m_en), m_gop(gop), m_mjpeg_qp(mjpeg_qp), m_queueSize(queueSize) {};
 		
 	std::string m_devName;
 	unsigned int m_format;
 	unsigned int m_width;
 	unsigned int m_height;
-	int m_fps;			
+	int m_fps;
+	int m_isp_fps;		
 	int m_verbose;
 
 	int m_bitrate;

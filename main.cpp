@@ -40,7 +40,7 @@
 #include "AlsaDeviceSource.h"
 
 
-#define SNX_RTSP_SERVER_VERSION		("V00.01.02")
+#define SNX_RTSP_SERVER_VERSION		("V00.01.04")
 
 // create live555 environment
 UsageEnvironment* env = NULL;
@@ -101,7 +101,7 @@ struct snx_v4l2_video* createVideoCapure(const V4L2DeviceParameters & param)
 		m_fd->m2m->height = param.m_height;
 
 		m_fd->m2m->codec_fps = param.m_fps;
-		m_fd->m2m->isp_fps = param.m_fps;
+		m_fd->m2m->isp_fps = param.m_isp_fps;
 		m_fd->m2m->gop = param.m_gop;
 
 		if (m_fd->m2m->codec_fmt  == V4L2_PIX_FMT_MJPEG)
@@ -278,6 +278,7 @@ int main(int argc, char** argv)
 	int height = 720;
 	int queueSize = 10;
 	int fps = 30;
+	int isp_fps = 30;
 	int bitrate = 1024; //(Kbps)
 	int mjpeg_qp = 120;
 	int m2m_en = 1;
@@ -302,9 +303,9 @@ int main(int argc, char** argv)
 	int c = 0;     
 	//while ((c = getopt (argc, argv, "hW:H:Q:P:F:v::O:T:m:u:rsM:")) != -1)
 #if AUDIO_STREAM
-	while ((c = getopt (argc, argv, "hb:W:H:g:Q:P:F:O:T:m:u:M:aj:")) != -1)
+	while ((c = getopt (argc, argv, "hb:W:H:g:Q:P:F:i:O:T:m:u:M:aj:")) != -1)
 #else
-	while ((c = getopt (argc, argv, "hb:W:H:g:Q:P:F:O:T:m:u:M:j:")) != -1)
+	while ((c = getopt (argc, argv, "hb:W:H:g:Q:P:F:i:O:T:m:u:M:j:")) != -1)
 #endif
 	{
 		switch (c)
@@ -321,6 +322,7 @@ int main(int argc, char** argv)
 			case 'P':	rtspPort = atoi(optarg); break;
 			case 'T':	rtspOverHTTPPort = atoi(optarg); break;
 			case 'F':	fps = atoi(optarg); break;
+			case 'i':	isp_fps = atoi(optarg); break;
 			//case 'r':	useMmap =  false; break;
 			//case 's':	useThread =  false; break;
 			case 'u':	url = optarg; break;
@@ -333,38 +335,39 @@ int main(int argc, char** argv)
 			{
 				std::cout << argv[0] << "Version:" << SNX_RTSP_SERVER_VERSION										<< std::endl;
 				std::cout << "Usage :"                                                              				<< std::endl;
-				std::cout << "\t " << argv[0] << " [-a] [-j mjpeg_qp] [-m] [-P RTSP port][-T RTSP/HTTP port][-Q queueSize] [-M groupaddress] [-b bitrate] [-W width] [-H height] [-F fps] [device]" << std::endl;
+				std::cout << "\t " << argv[0] << " [-a] [-j mjpeg_qp] [-m] [-P RTSP port][-T RTSP/HTTP port][-Q queueSize] [-M groupaddress] [-b bitrate] [-W width] [-H height] [-F fps] [-i isp_fps] [device]" << std::endl;
 
 				std::cout << "\t -Q length: Number of frame queue  (default "<< queueSize << ")"                   << std::endl;
 				std::cout << "\t RTSP options :"                                                                   << std::endl;
-				std::cout << "\t -u url   : unicast url (default " << url << ")"                                   << std::endl;
-				std::cout << "\t -m url   : multicast url (default " << murl << ")"                                << std::endl;
-				std::cout << "\t -M addr  : multicast group   (default is a random address)"                                << std::endl;
-				std::cout << "\t -P port  : RTSP port (default "<< rtspPort << ")"                                 << std::endl;
-				std::cout << "\t -T port  : RTSP over HTTP port (default "<< rtspOverHTTPPort << ")"               << std::endl;
+				std::cout << "\t -u url     : unicast url (default " << url << ")"                                   << std::endl;
+				std::cout << "\t -m url     : multicast url (default " << murl << ")"                                << std::endl;
+				std::cout << "\t -M addr    : multicast group   (default is a random address)"                                << std::endl;
+				std::cout << "\t -P port    : RTSP port (default "<< rtspPort << ")"                                 << std::endl;
+				std::cout << "\t -T port    : RTSP over HTTP port (default "<< rtspOverHTTPPort << ")"               << std::endl;
 				std::cout << "\t V4L2 options :"                                                                   << std::endl;
 				//std::cout << "\t -r       : V4L2 capture using read interface (default use memory mapped buffers)" << std::endl;
 				//std::cout << "\t -s       : V4L2 capture using live555 mainloop (default use a separated reading thread)" << std::endl;
-				std::cout << "\t -F fps   : V4L2 capture framerate (default "<< fps << ")"                         << std::endl;
-				std::cout << "\t -W width : V4L2 capture width (default "<< width << ")"                           << std::endl;
-				std::cout << "\t -H height: V4L2 capture height (default "<< height << ")"                         << std::endl;
+				std::cout << "\t -F fps     : V4L2 capture framerate (default "<< fps << ")"                         << std::endl;
+				std::cout << "\t -i isp_fps : ISP capture framerate (default "<< isp_fps << ")"                         << std::endl;
+				std::cout << "\t -W width   : V4L2 capture width (default "<< width << ")"                           << std::endl;
+				std::cout << "\t -H height  : V4L2 capture height (default "<< height << ")"                         << std::endl;
 				
 				std::cout << "\t V4L2 H264 options :"                                                              << std::endl;
 
-				std::cout << "\t -b bitrate: V4L2 capture bitrate kbps(default "<< bitrate << " kbps)"				<< std::endl;
-				std::cout << "\t -g gop   : V4L2 capture gop (default "<< gop << " )"									<< std::endl;
-				std::cout << "\t device   : V4L2 capture device (default "<< dev_name << ")"                       << std::endl;
+				std::cout << "\t -b bitrate : V4L2 capture bitrate kbps(default "<< bitrate << " kbps)"				<< std::endl;
+				std::cout << "\t -g gop     : V4L2 capture gop (default "<< gop << " )"									<< std::endl;
+				std::cout << "\t device     : V4L2 capture device (default "<< dev_name << ")"                       << std::endl;
 
 				std::cout << "\t V4L2 MJPEG options :"                                                              << std::endl;
-				std::cout << "\t -j  mjpeg_qp     : MJPEG streaming and qp (default is 60)"							<< std::endl;
+				std::cout << "\t -j mjpeg_qp : MJPEG streaming and qp (default is 60)"							<< std::endl;
 
 #if AUDIO_STREAM
-				std::cout << "\t -a       : enable A-law pcm streaming "											 << std::endl;
-				std::cout << "\t H264 example   : "<< argv[0] << " -a -Q 5 -u media/stream1 -P 554"                       << std::endl;
+				std::cout << "\t -a         : enable A-law pcm streaming "											 << std::endl;
+				std::cout << "\t H264 example : "<< argv[0] << " -a -Q 5 -u media/stream1 -P 554"                       << std::endl;
 #else
-				std::cout << "\t H264 example   : "<< argv[0] << " -Q 5 -u media/stream1 -P 554"                       << std::endl;
+				std::cout << "\t H264 example : "<< argv[0] << " -Q 5 -u media/stream1 -P 554"                       << std::endl;
 #endif
-				std::cout << "\t MJPEG example   : "<< argv[0] << " -W 640 -H 480 -j 120 -Q 5 -u media/stream1 -P 554"		<< std::endl;
+				std::cout << "\t MJPEG example : "<< argv[0] << " -W 640 -H 480 -j 120 -Q 5 -u media/stream1 -P 554"		<< std::endl;
 				exit(0);
 			}
 		}
@@ -397,7 +400,7 @@ int main(int argc, char** argv)
 		//LOG(NOTICE) << "Create V4L2 Source..." << dev_name;
 		fprintf(stderr, "create Video source = %s \n", dev_name);
 		
-		V4L2DeviceParameters param(dev_name,format,width,height,fps, verbose, bitrate, m2m_en, gop, mjpeg_qp, queueSize );
+		V4L2DeviceParameters param(dev_name,format,width,height,fps, isp_fps, verbose, bitrate, m2m_en, gop, mjpeg_qp, queueSize );
 		videoCapture = createVideoCapure(param);
 
 #if AUDIO_STREAM
